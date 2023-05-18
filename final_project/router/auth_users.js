@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const jwt = require('jsonwebtoken');
 let books = require("./booksdb.js");
 const regd_users = express.Router();
@@ -38,7 +39,7 @@ regd_users.post("/login", (req,res) => {
 
   if (authenticatedUser(username,password)) {
     let accessToken = jwt.sign({
-      data: password
+      data: username
     }, 'access', { expiresIn: 60 * 60 });
 
     req.session.authorization = {
@@ -53,13 +54,17 @@ regd_users.post("/login", (req,res) => {
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
   const isbn = req.params.isbn;
-	let book = books[isbn]
-	if (book) { //Check is friend exists
-			let review = req.body.review;
 
+	let review = req.query.review;
+	let currentSessionusername = req.session.authorization["username"];
+
+	let book = books[isbn]
+
+	if (book) { //Check is friend exists
+			
 			//if DOB the DOB has been changed, update the DOB 
 			if(review) {
-					book["review"] = review
+				book["reviews"][currentSessionusername] = review;
 			}
 
 			books[isbn]=book;
@@ -69,6 +74,20 @@ regd_users.put("/auth/review/:isbn", (req, res) => {
 			res.send("Unable to find book!");
 	}
 });
+
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+	const isbn = req.params.isbn;
+
+	let currentSessionusername = req.session.authorization["username"];
+
+	if(isbn){
+		delete books[isbn]["reviews"][currentSessionusername];
+	}
+	
+  // Update the code here
+  res.send(`The review for the book ${isbn} posted by the user ${currentSessionusername} deleted.`);
+});
+
 
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
